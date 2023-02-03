@@ -1,0 +1,155 @@
+version: '3'
+
+networks:
+  kafka-net:
+    driver: bridge
+
+services:
+  zoo1:
+    image: 'bitnami/zookeeper:3.7.0'
+    hostname: zoo1
+    container_name: zoo1
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_PORT_NUMBER=2181
+      - ZOO_SERVER_ID=1
+      - ZOO_SERVER=zoo1:2888:3888;zoo2:2888:3888;zoo3:2888:3888
+
+  zoo2:
+    image: 'bitnami/zookeeper:3.7.0'
+    hostname: zoo2
+    container_name: zoo2
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_PORT_NUMBER=2182
+      - ZOO_SERVER_ID=2
+      - ZOO_SERVER=zoo1:2888:3888;zoo2:2888:3888;zoo3:2888:3888
+
+  zoo3:
+    image: 'bitnami/zookeeper:3.7.0'
+    hostname: zoo3
+    container_name: zoo3
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_PORT_NUMBER=2183
+      - ZOO_SERVER_ID=3
+      - ZOO_SERVER=zoo1:2888:3888;zoo2:2888:3888;zoo3:2888:3888
+
+  kfk1:
+    image: 'bitnami/kafka:3.1.0'
+    hostname: kfk1
+    container_name: kfk1
+    restart: on-failure
+    networks:
+      - kafka-net
+    ports:
+      - '9093:9093'
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kfk1:9092,EXTERNAL://localhost:9093
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zoo1:2181,zoo2:2182,zoo3:2183
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+
+  kfk2:
+    image: 'bitnami/kafka:3.1.0'
+    hostname: kfk2
+    container_name: kfk2
+    restart: on-failure
+    networks:
+      - kafka-net
+    ports:
+      - '9094:9094'
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_BROKER_ID=2
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kfk2:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zoo1:2181,zoo2:2182,zoo3:2183
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+
+  kfk3:
+    image: 'bitnami/kafka:3.1.0'
+    hostname: kfk3
+    container_name: kfk3
+    restart: on-failure
+    networks:
+      - kafka-net
+    ports:
+      - '9095:9095'
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_BROKER_ID=3
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9095
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kfk3:9092,EXTERNAL://localhost:9095
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zoo1:2181,zoo2:2182,zoo3:2183
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+
+  producer:
+    build:
+      context: ./producer
+    hostname: prod
+    container_name: prod
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      - KAFKA_SERVERS=kfk1:9092,kfk2:9092,kfk3:9092
+      - KAFKA_TOPIC=host_ip
+#      - IP_WEB_API=
+#      - LOG_LEVEL=INFO
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+      - kfk1
+      - kfk2
+      - kfk3
+
+  consumer:
+    build:
+      context: ./consumer
+    hostname: cons
+    container_name: cons
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      - KAFKA_SERVERS=kfk1:9092,kfk2:9092,kfk3:9092
+      - KAFKA_TOPIC=host_ip
+#      - AUTO_OFFSET_RESET=latest
+#      - LOG_LEVEL=INFO
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+      - kfk1
+      - kfk2
+      - kfk3
+      - producer
+
