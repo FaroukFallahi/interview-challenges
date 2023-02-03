@@ -1,0 +1,20 @@
+version: "3"
+services:
+  sample-python:
+    hostname: sample-python-server
+    environment:
+      - PORT=8080
+    build: 
+      context: ./sample-python/
+    restart: always
+  
+  nginx:
+    image: nginx:1.22-alpine
+    restart: always
+    environment:
+      - "TZ=Asia/Tehran"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 8000:80
+
